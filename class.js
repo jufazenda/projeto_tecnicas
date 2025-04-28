@@ -1,4 +1,3 @@
-//codigo_original
 
 const Table = <T,>({
   collapsible,
@@ -21,12 +20,15 @@ const Table = <T,>({
   filterClear,
   disableSorting,
 }: TableProps<T>) => {
-  const [selectAllItems, setSelectAllItems] = useState<boolean>(false)
+  const [selectAllItems, setSelectAllItems] = useState(false)
   const [selectedItems, setSelectedItems] = useState<boolean[]>([])
   const [sortedColumn, setSortedColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
   const [isOpenCollapsible, setIsOpenCollapsible] = useState<boolean[]>([])
+
+  useEffect(() => {
+    setSelectedItems(Array(rows.length).fill(false))
+  }, [rows.length])
 
   const handleSelectAllItems = (isChecked: boolean) => {
     setSelectAllItems(isChecked)
@@ -37,95 +39,57 @@ const Table = <T,>({
     const updatedSelectedItems = [...selectedItems]
     updatedSelectedItems[index] = isChecked
     setSelectedItems(updatedSelectedItems)
-
-    const allSelected = updatedSelectedItems.every(item => item === true)
-    setSelectAllItems(allSelected)
+    setSelectAllItems(updatedSelectedItems.every(Boolean))
   }
 
   const handleSort = (index: string) => {
-    if (sortedColumn === index) {
-      const newSortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-      setSortDirection(newSortDirection)
-      if (onSortChange) {
-        onSortChange(index, newSortDirection)
-      }
-    } else {
-      setSortedColumn(index)
-      setSortDirection('desc')
-      if (onSortChange) {
-        onSortChange(index, 'desc')
-      }
-    }
+    const newDirection = sortedColumn === index && sortDirection === 'asc' ? 'desc' : 'asc'
+    setSortedColumn(index)
+    setSortDirection(newDirection)
+    onSortChange?.(index, newDirection)
   }
 
-  const getNestedValue = (obj: any, path: string) => {
-    const value = path
-      .split('.')
-      .reduce(
-        (acc, key) => (acc && acc[key] !== undefined ? acc[key] : null),
-        obj
-      )
-    return value === null || value === undefined ? '-' : value
-  }
+  const getNestedValue = (obj: any, path: string) =>
+    path.split('.').reduce((acc, key) => acc?.[key], obj) ?? '-'
 
   const toggleCollapsible = (index: number) => {
-    setIsOpenCollapsible(prevState => {
-      const updatedState = [...prevState]
-      updatedState[index] = !updatedState[index]
-      return updatedState
+    setIsOpenCollapsible(prev => {
+      const updated = [...prev]
+      updated[index] = !updated[index]
+      return updated
     })
   }
 
-  useEffect(() => {
-    setSelectedItems(Array(rows.length).fill(false))
-  }, [rows.length])
-
-  const verificaCollapsible = (row: T) => {
+  const hasCollapsible = (row: T) => {
     if (!collapsible) return false
-    if (Array.isArray(row)) {
-      return row.length
-    } else {
-      return row
-    }
+    const value = (row as any)[collapsible]
+    return Array.isArray(value) ? value.length > 0 : Boolean(value)
   }
 
   return (
     <div className='relative bg-white rounded'>
-      <div className='flex items-center justify-between p-4  border-gray-200 bg-white rounded-t'>
-        <div className='flex flex-col gap-1 '>
-          <span className='text-lg font-semibold text-blue-warm-vivid-90'>
-            {headerTitle}
-          </span>
+      <div className='flex items-center justify-between p-4 border-gray-200 bg-white rounded-t'>
+        <div className='flex flex-col gap-1'>
+          <span className='text-lg font-semibold text-blue-warm-vivid-90'>{headerTitle}</span>
           <span className='text-sm text-gray-30'>{headerSubtitle}</span>
         </div>
         <div className='flex items-center space-x-2'>
           {dropdownOptions.length <= 4 ? (
             dropdownOptions.map((option, index) => (
-              <div key={index}>
-                <Button
-                  key={index}
-                  icon={option.icon}
-                  title={option?.title || ''}
-                  variant='tertiary'
-                  size='sm'
-                  onClick={() =>
-                    option.onClick &&
-                    option.onClick(option.value as unknown as T)
-                  }
-                />
-              </div>
+              <Button
+                key={index}
+                icon={option.icon}
+                title={option.title || ''}
+                variant='tertiary'
+                size='sm'
+                onClick={() => option.onClick?.(option.value as T)}
+              />
             ))
           ) : (
-            <DropdownOptions
-              icon={faEllipsis}
-              options={dropdownOptions}
-              onSelect={() => {}}
-            />
+            <DropdownOptions icon={faEllipsis} options={dropdownOptions} onSelect={() => {}} />
           )}
         </div>
-      </div>
-
-      <div className='overflow-x-auto overflow-y-auto'>
+      </div> <div className='overflow-x-auto overflow-y-auto'>
         <table className='min-w-full divide-y divide-gray-200 '>
           <thead className='bg-gray-table'>
             <tr>
